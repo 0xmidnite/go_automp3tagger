@@ -24,6 +24,7 @@ type ActionSectionModel struct {
 	Options 				[]FileAction
 	IsFocusedOnMusicTable 	bool
 	IsFocusedOnFileTable 	bool
+	Log 					string
 }
 
 
@@ -41,6 +42,10 @@ var NormalStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#FAFAFA")). // White text
 	Padding(0, 1)
 
+var LogStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#C60101")). // Red text
+	Padding(0, 1)
+
 type ActionMsg struct {
 	Action FileAction
 }
@@ -51,6 +56,11 @@ func SendAction(action FileAction) tea.Cmd {
 			Action: action,
 		}
 	}
+}
+
+func (m ActionSectionModel) SetLog(log string) ActionSectionModel {
+	m.Log = log
+	return m
 }
 
 func (m ActionSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -106,7 +116,7 @@ func (m ActionSectionModel) View() string {
 		}
 	}
 
-	return s
+	return s + "\n" + LogStyle.Render(m.Log)
 }
 
 func InitActionSection() ActionSectionModel {

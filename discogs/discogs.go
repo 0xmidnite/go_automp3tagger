@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	net "net/http"
-	"time"
+	"net/url"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -56,7 +56,7 @@ type DiscogsSearchResponse struct {
 
 
 func GetRequest(file *ops.FileInfo) (*net.Request, error) {
-	var req, err = net.NewRequest("GET", "https://api.discogs.com/database/search?q=" + file.Query + "&per_page=100", nil)
+	var req, err = net.NewRequest("GET", "https://api.discogs.com/database/search?q=" + url.QueryEscape(file.Query) + "&per_page=100", nil)
 
 	if err != nil {
 		return nil, err
@@ -91,6 +91,7 @@ func GetDiscogsResponse(file *ops.FileInfo) (*DiscogsSearchResponse, error) {
 	}
 
 	var response DiscogsSearchResponse
+	
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("error unmarshaling JSON: %w", err)
 	}
@@ -106,8 +107,6 @@ type DiscogsRequestMsg struct {
 
 func DiscogsRequest(index int, file *ops.FileInfo) tea.Cmd {
 	return func() tea.Msg {
-		time.Sleep(2 * time.Second)
-
 		var response, err = GetDiscogsResponse(file)
 
 		return DiscogsRequestMsg{

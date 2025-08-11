@@ -17,6 +17,7 @@ type MusicRow struct {
 	FileName 		string
 	HasCompleteID3 	string
 	Status 			FileStatus
+	DiscogsResults 	[]discogs.DiscogsSearchResult
 }
 
 type MusicTableModel struct {
@@ -229,8 +230,14 @@ func InitTable(files []ops.FileInfo) MusicTableModel {
 	for index, file := range files {
 		var status FileStatus
 
+		var id3Check, complete = CheckID3(file)
+
 		if(file.Extension == "mp3") {
-			status = STATUS_PENDING
+			if(!complete) {
+				status = STATUS_PENDING
+			}else{
+				status = STATUS_FETCH_ACCEPTED
+			}
 		} else {
 			status = STATUS_NOT_MP3
 		}
@@ -239,12 +246,12 @@ func InitTable(files []ops.FileInfo) MusicTableModel {
 			Index: index,
 			Extension: file.Extension,
 			FileName: file.FileName,
-			HasCompleteID3: CheckID3(file),
+			HasCompleteID3: id3Check,
 			Status: status,
 		})
 
 		rows = append(rows, table.Row{
-			strconv.Itoa(index), file.Extension, file.FileName, CheckID3(file), FileStatusToString(status),
+			strconv.Itoa(index), file.Extension, file.FileName, id3Check, FileStatusToString(status),
 		})
 	}
 

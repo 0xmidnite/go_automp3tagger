@@ -9,6 +9,8 @@ import (
 
 	discogs "automp3tagger/discogs"
 
+	"strconv"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -35,6 +37,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var index = msg.Index - 1
 
 			if(msg.Error != nil) {
+				m.actionSection = m.actionSection.SetLog(msg.Error.Error())
 
 				rows[index][4] = ui.FileStatusToString(ui.STATUS_FETCH_ERROR)
 
@@ -42,7 +45,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				return m, cmd
 			}
-			
+
+			m.actionSection = m.actionSection.SetLog("Found " + strconv.Itoa(len(msg.Response.Results)) + " results")
 
 			rows[index][4] = ui.FileStatusToString(ui.STATUS_FETCH_OK)
 
@@ -76,7 +80,6 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     	case tea.KeyMsg:
     		switch msg.String() {
 				case "tab":
-
 					return m, nil
 
 				case "right", "left", "enter":

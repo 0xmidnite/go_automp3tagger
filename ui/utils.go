@@ -24,24 +24,26 @@ const (
 func FileStatusToString(status FileStatus) string {
 	switch status {
 		case STATUS_FETCH_OK:
-			return "☑️  "
+			return "☑️\t"
 		case STATUS_FETCH_ACCEPTED:
-			return "✅ "
+			return "✅\t"
 		case STATUS_FETCH_REJECTED:
-			return "❌ "
+			return "❌\t"
 		case STATUS_PENDING:
-			return "💬 "
+			return "💬\t"
 		case STATUS_FETCH_ERROR:
-			return "‼️ "
+			return "‼️\t"
 		case STATUS_FETCHING:
-			return "🔎 "
+			return "🔎\t"
 		default:
-			return "⛔️ "
+			return "⛔️\t"
 	}
 }
 
 
-func CheckID3(file ops.FileInfo) string {
+func CheckID3(file ops.FileInfo) (string, bool) {
+	var complete bool = true
+
 	if(file.Id3Info != nil) {
 		var id3TagFlag = ""
 		var img = file.Id3Info.GetFrames(id3v2.V23CommonIDs["Attached picture"])
@@ -50,43 +52,50 @@ func CheckID3(file ops.FileInfo) string {
 			id3TagFlag += "A"
 		}else{
 			id3TagFlag += "-"
+			complete = false
 		}
 
 		if(file.Id3Info.Album() != ""){
 			id3TagFlag += "a"
 		}else{
 			id3TagFlag += "-"
+			complete = false
 		}
 
 		if(file.Id3Info.Title() != ""){
 			id3TagFlag += "T"
 		}else{
 			id3TagFlag += "-"
+			complete = false
 		}
 
 		if(file.Id3Info.Genre() != ""){
 			id3TagFlag += "G"
 		}else{
 			id3TagFlag += "-"
+			complete = false
 		}
 		if(file.Id3Info.Year() != ""){
 			id3TagFlag += "Y"
 		}else{
 			id3TagFlag += "-"
+			complete = false
 		}
 
 		if(len(img) > 0){
 			id3TagFlag += "I" + strconv.Itoa(len(img))
 		}else{
 			id3TagFlag += "i-"
+			complete = false
 		}
 
 		if(len(id3TagFlag) == 0){
-			return "Empty"
+			return "Empty", false
 		}
 
-		return id3TagFlag
+		return id3TagFlag, complete
 	}
 	
-	return "No Tag"
+	return "No Tag", false
 }
+

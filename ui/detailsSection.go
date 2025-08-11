@@ -102,6 +102,7 @@ func (m DetailsSectionModel) SetFile(file *ops.FileInfo) DetailsSectionModel {
 		{"Title: " + file.Id3Info.Title()},
 		{"Genre: " + file.Id3Info.Genre()},
 		{"Year: " + file.Id3Info.Year()},
+		{"Query: " + file.Query},
 	})
 
 	return m

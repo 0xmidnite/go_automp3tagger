@@ -1,8 +1,12 @@
 package file_ops
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 
 	id3v2 "github.com/bogem/id3v2/v2"
 )
@@ -15,19 +19,77 @@ type FileInfo struct {
 	Id3Info 	*id3v2.Tag
 }
 
-func DeduceFromFilename(filename string) (string, string, string) {
-	// var stringSplit = strings.Split(filename, " - ")
-	var artist = ""
-	var album = ""
-	var extra = ""
+func SanitizeFilename(filename string, removeDashes bool) string {
+    // Pattern to match numbers and periods at the beginning
+    patternNumbersAndPeriodsFirst := regexp.MustCompile(`^[0-9.]*[0-9][0-9.]*`)
+    
+    // Pattern for special characters (with or without dashes)
+    var patternSpecialCharacters *regexp.Regexp
+    if removeDashes {
+        patternSpecialCharacters = regexp.MustCompile(`[-_<>]`)
+    } else {
+        patternSpecialCharacters = regexp.MustCompile(`[_<>]`)
+    }
+    
+    // Get the filename without extension
+    base := filepath.Base(filename)
+    name := strings.TrimSuffix(base, filepath.Ext(base))
+    
+    // Remove numbers and periods from the beginning
+    name = patternNumbersAndPeriodsFirst.ReplaceAllString(name, "")
+    
+    // Replace special characters with spaces
+    name = patternSpecialCharacters.ReplaceAllString(name, " ")
+    
+    // Trim whitespace
+    return strings.TrimSpace(name)
+}
 
-	return artist, album, extra
+func DeduceFromFilename(filename string) (string, string, string, error) {
+	var sanitized = SanitizeFilename(filename, false)
+	var split = strings.Split(sanitized, " - ")
+
+	if(len(split) == 1) {
+		return "", "", split[0], nil
+	}
+
+	if(len(split) == 2) {
+		return "", split[0], split[1], nil
+	}
+
+	if(len(split) == 3) {
+		return split[0], split[1], split[2], nil
+	}
+
+	return "", "", "", errors.New("found nothing")
 }
 
 
-func GetQuery(filename string) string {
-	// var artist, album, catno = deduceFromFilename(filename)
-	return ""
+func GetQuery(filename string, tag *id3v2.Tag) string {
+	var catno, artist, album, err = DeduceFromFilename(filename)
+
+	if(tag != nil) {
+		var artistTag = tag.Artist()
+
+		if(artistTag != "") {
+			artist = artistTag
+		}
+
+		var albumTag = tag.Title()
+
+		if(albumTag != "") {
+			album = albumTag
+		}
+
+		return artist + " " + album 
+	}
+
+	if(err != nil) {
+		fmt.Println("Error deducing from filename:", err)
+		return ""
+	}
+
+	return catno + " " + artist + " " + album
 }
 
 func PrepareFiles() []FileInfo {
@@ -50,7 +112,7 @@ func PrepareFiles() []FileInfo {
 				Path: pathName,
 				FileName: fileName,
 				Extension: extension,
-				Query: GetQuery(fileName),
+				Query: GetQuery(fileName, nil),
 				Id3Info: nil,
 			})
 			continue
@@ -67,7 +129,7 @@ func PrepareFiles() []FileInfo {
 			Path: pathName,
 			FileName: fileName,
 			Extension: extension,
-			Query: GetQuery(fileName),
+			Query: GetQuery(fileName, tag),
 			Id3Info: tag,
 		})
 
