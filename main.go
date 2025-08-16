@@ -36,6 +36,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var rows = m.musicTable.Table.Rows()
 			var index = msg.Index - 1
 
+			m.detailsSection = m.detailsSection.UpdateFetching(false)
+
 			if(msg.Error != nil) {
 				m.actionSection = m.actionSection.SetLog(msg.Error.Error())
 
@@ -48,6 +50,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			m.actionSection = m.actionSection.SetLog("Found " + strconv.Itoa(len(msg.Response.Results)) + " results")
 
+			m.musicTable.UpdateRowResponse(index, msg.Response.Results)
+
+			if(m.musicTable.IndexSelected == m.musicTable.CursorIndex) {
+				m.detailsSection = m.detailsSection.UpdateDiscogsResponses(msg.Response.Results)
+			}
+
 			rows[index][4] = ui.FileStatusToString(ui.STATUS_FETCH_OK)
 
 			m.musicTable.Table.SetRows(rows)
@@ -56,15 +64,20 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case ui.SetFileMsg:
 			if(msg.SelectedIndex == -1) {
-				m.detailsSection = m.detailsSection.SetFile(nil)
+				m.detailsSection = m.detailsSection.SetFile(nil, nil)
 			}else{
-				m.detailsSection = m.detailsSection.SetFile(&m.files[msg.SelectedIndex])
+				m.detailsSection = m.detailsSection.SetFile(&m.files[msg.SelectedIndex], &m.musicTable.Files[msg.SelectedIndex].DiscogsResults)
 			}
 
 			return m, cmd
 
 		case ui.ActionMsg:
 			var updatedModel tea.Model
+
+			if(msg.Action == ui.START_FETCHING_SELECTED) {
+				m.detailsSection = m.detailsSection.UpdateFetching(true)
+			}
+
 			updatedModel, cmd = m.musicTable.Update(msg)
 			m.musicTable = updatedModel.(ui.MusicTableModel)
 			
@@ -80,6 +93,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     	case tea.KeyMsg:
     		switch msg.String() {
 				case "tab":
+					if(m.musicTable.Table.Focused() && !m.detailsSection.IsUnset) {
+						m.detailsSection.Mp3InfoTable.Focus()
+						m.musicTable.Table.Blur()
+					}else{
+						m.musicTable.Table.Focus()
+						m.detailsSection.Mp3InfoTable.Blur()
+					}
 					return m, nil
 
 				case "right", "left", "enter":
@@ -97,6 +117,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						updatedModel, cmd = m.musicTable.Update(msg)
 						m.musicTable = updatedModel.(ui.MusicTableModel)
+					}
+
+					if(m.detailsSection.Mp3InfoTable.Focused()) {
+						var updatedModel tea.Model
+
+						updatedModel, cmd = m.detailsSection.Update(msg)
+						m.detailsSection = updatedModel.(ui.DetailsSectionModel)
 					}
 
 					return m, cmd

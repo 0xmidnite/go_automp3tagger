@@ -2,6 +2,8 @@ package ui
 
 import (
 	ops "automp3tagger/file_ops"
+	"slices"
+	"strconv"
 
 	discogs "automp3tagger/discogs"
 
@@ -11,60 +13,107 @@ import (
 )
 
 type DetailsSectionModel struct {
-	Table 				table.Model
+	Mp3InfoTable 		table.Model
+	DiscogsTable 		table.Model
+	
 	IsFocused 			bool
 	IsUnset 			bool
+	ColumnWidth 	    int
 
 	File 				*ops.FileInfo
-	DiscogsResponses 	[]discogs.DiscogsSearchResponse
+	DiscogsResponses 	[]discogs.DiscogsSearchResult
+	ResponseIndex 		int
 	Fetching 			bool
+	// CursorIndex 		int
 }
 
-func (m DetailsSectionModel) Init() tea.Cmd {
-	return nil
-}
+var focusedStyleDetails = lipgloss.NewStyle().
+	BorderStyle(lipgloss.ThickBorder()).
+	BorderForeground(lipgloss.Color("#FFE2AA"))
 
-func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
+var baseStyleDetails = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
 
-	case tea.KeyMsg:
-		switch msg.String() {
-
-		case "esc":
-			return m, nil
-		}
+func (m DetailsSectionModel) GetFileRows() []table.Row {
+	return []table.Row{
+		{"Path: " + m.File.Path},
+		{"Name: " + m.File.FileName},
+		{"Extension: " + m.File.Extension},
+		{"Artist: " + m.File.Id3Info.Artist()},
+		{"Album: " + m.File.Id3Info.Album()},
+		{"Title: " + m.File.Id3Info.Title()},
+		{"Genre: " + m.File.Id3Info.Genre()},
+		{"Year: " + m.File.Id3Info.Year()},
+		{"Query: " + m.File.Query},
 	}
-	return m, nil
 }
 
-func (m DetailsSectionModel) View() string {
+func (m DetailsSectionModel) GetDiscogsResponseRows() []table.Row {
+	if(len(m.DiscogsResponses) == 0) {
+		return []table.Row{}
+	}
+
+	var rows = []table.Row{
+		{strconv.Itoa(len(m.DiscogsResponses)) + " results found"},
+	}
+
+	for _, response := range m.DiscogsResponses {
+		rows = append(rows, table.Row{
+			response.Title + " - " + response.Catno,
+		})
+	}
+
+	return rows
+}
+
+func (m DetailsSectionModel) UpdateDiscogsResponses(responses []discogs.DiscogsSearchResult) DetailsSectionModel {
 	if(m.IsUnset) {
-		return ""
+		return m
+	}
+	
+	var rows = m.GetFileRows()
+
+	if(len(responses) == 0) {
+		rows = slices.Concat(rows, []table.Row{
+			{"No results found"},
+		})
+	}else{
+		m.DiscogsResponses = responses
+		rows = slices.Concat(rows, m.GetDiscogsResponseRows())
 	}
 
-	return baseStyleDetails.Render(m.Table.View())
-}
+	m.Mp3InfoTable.SetRows(rows)
 
-func (m DetailsSectionModel) UpdateDiscogsResponses(responses []discogs.DiscogsSearchResponse) DetailsSectionModel {
-	m.DiscogsResponses = responses
 	return m
 }
 
 func (m DetailsSectionModel) UpdateFetching(fetching bool) DetailsSectionModel {
 	m.Fetching = fetching
+	var isFetching = "Idle"
+
+	if(fetching) {
+		isFetching = "Fetching..."
+	}
+
+	if(!m.IsUnset){
+		m.Mp3InfoTable.SetColumns([]table.Column{
+			{Title:  m.File.FileName + " - " + isFetching, Width: m.ColumnWidth},
+		})
+	}
 	return m
 }
 
-func (m DetailsSectionModel) SetFile(file *ops.FileInfo) DetailsSectionModel {
+func (m DetailsSectionModel) SetFile(file *ops.FileInfo, discogsResponses *[]discogs.DiscogsSearchResult) DetailsSectionModel {
 	if(file == nil) {
 		m.File = nil
 		m.IsUnset = true
 
-		m.Table.SetColumns([]table.Column{
-			{Title: "No file selected", Width: 50},
+		m.Mp3InfoTable.SetColumns([]table.Column{
+			{Title: "No file selected", Width: m.ColumnWidth},
 		})
 	
-		m.Table.SetRows([]table.Row{
+		m.Mp3InfoTable.SetRows([]table.Row{
 			{"NIL"},
 		})
 
@@ -75,11 +124,11 @@ func (m DetailsSectionModel) SetFile(file *ops.FileInfo) DetailsSectionModel {
 		m.File = nil
 		m.IsUnset = false
 
-		m.Table.SetColumns([]table.Column{
-			{Title: "Not a mp3 file...", Width: 50},
+		m.Mp3InfoTable.SetColumns([]table.Column{
+			{Title: "Not a mp3 file...", Width: m.ColumnWidth},
 		})
 	
-		m.Table.SetRows([]table.Row{
+		m.Mp3InfoTable.SetRows([]table.Row{
 			{"Not a mp3 file... No Info to show"},
 		})
 
@@ -88,22 +137,29 @@ func (m DetailsSectionModel) SetFile(file *ops.FileInfo) DetailsSectionModel {
 
 	m.IsUnset = false
 	m.File = file
+	var isFetching = "Idle"
 
-	m.Table.SetColumns([]table.Column{
-		{Title: file.FileName, Width: 50},
+	if(m.Fetching) {
+		isFetching = "Fetching..."
+	}
+
+	m.Mp3InfoTable.SetColumns([]table.Column{
+		{Title: file.FileName + " - " + isFetching, Width: m.ColumnWidth},
 	})
 
-	m.Table.SetRows([]table.Row{
-		{"Path: " + file.Path},
-		{"Name: " + file.FileName},
-		{"Extension: " + file.Extension},
-		{"Artist: " + file.Id3Info.Artist()},
-		{"Album: " + file.Id3Info.Album()},
-		{"Title: " + file.Id3Info.Title()},
-		{"Genre: " + file.Id3Info.Genre()},
-		{"Year: " + file.Id3Info.Year()},
-		{"Query: " + file.Query},
-	})
+	var rows = m.GetFileRows()
+
+	m.DiscogsResponses = *discogsResponses
+
+	if(len(m.DiscogsResponses) == 0) {
+		rows = slices.Concat(rows, []table.Row{
+			{"No results found"},
+		})
+	}else{
+		rows = slices.Concat(rows, m.GetDiscogsResponseRows())
+	}
+
+	m.Mp3InfoTable.SetRows(rows)
 
 	return m
 }
@@ -112,19 +168,21 @@ func (m DetailsSectionModel) Resize(windowWidth int, windowHeight int) DetailsSe
 	var tableWidth float32 = float32((windowWidth / 2.0) - 10.0)
 	var tableHeight = (windowHeight) - 4
 
-	m.Table.SetWidth(int(tableWidth))
-	m.Table.SetHeight(tableHeight)
+	m.Mp3InfoTable.SetWidth(int(tableWidth))
+	m.Mp3InfoTable.SetHeight(tableHeight)
 
-	m.Table.SetColumns([]table.Column{
-		{Title: "No file selected", Width: int(tableWidth)},
-	})
+	
+	var columns = m.Mp3InfoTable.Columns()
+
+	for i := 0; i < len(columns); i++ {
+		columns[i].Width = int(tableWidth)
+	}
+
+	m.ColumnWidth = int(tableWidth)
+	m.Mp3InfoTable.SetColumns(columns)
 
 	return m
 }
-
-var baseStyleDetails = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
 
 
 func InitInfoStyles() table.Styles {
@@ -136,6 +194,11 @@ func InitInfoStyles() table.Styles {
 		BorderBottom(true).
 		Bold(false)
 
+	styles.Selected = styles.Selected.
+		Foreground(lipgloss.Color("229")).
+		Bold(true)
+
+
 	return styles
 }
 
@@ -143,7 +206,7 @@ func InitInfoTable() DetailsSectionModel {
 	var styles = InitInfoStyles()
 	table := table.New(
 		table.WithColumns([]table.Column{
-			{Title: "No file selected", Width: 50},
+			{Title: "No file selected", Width: 70},
 		}),
 		table.WithRows([]table.Row{
 			{"NIL"},
@@ -156,11 +219,85 @@ func InitInfoTable() DetailsSectionModel {
 	table.SetStyles(styles)
 
 	return DetailsSectionModel{
-		Table: table,
+		Mp3InfoTable: table,
 		IsFocused: false,
 		IsUnset: true,
 		File: nil,
+		DiscogsResponses: []discogs.DiscogsSearchResult{},
+		ResponseIndex: -1,
+		Fetching: false,
+		ColumnWidth: 70,
 	}
 }
 
+func (m DetailsSectionModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	
+	switch msg := msg.(type) {
+
+	case tea.KeyMsg:
+		switch msg.String() {
+
+		case "esc":
+			return m, nil
+
+		case "up":
+			m.Mp3InfoTable.MoveUp(1)
+
+			// if m.CursorIndex > 0 {
+			// 	m.CursorIndex--
+			// }
+
+			return m, cmd
+
+		case "down":
+			m.Mp3InfoTable.MoveDown(1)
+
+			// if m.CursorIndex < len(m.Files) - 1 {
+			// 	m.CursorIndex++
+			// }
+
+			return m, cmd
+
+		case "shift+up":
+			m.Mp3InfoTable.MoveUp(10)
+
+			// if m.CursorIndex - 10 > 0 {
+			// 	m.CursorIndex -= 10
+			// } else {
+			// 	m.CursorIndex = 0
+			// }
+			
+			return m, cmd
+
+		case "shift+down":
+			m.Mp3InfoTable.MoveDown(10)
+
+			// if m.CursorIndex + 10 < len(m.Files) {
+			// 	m.CursorIndex += 10
+			// } else {
+			// 	m.CursorIndex = len(m.Files) - 1
+			// }
+
+			return m, cmd
+		}
+	}
+	return m, nil
+}
+
+func (m DetailsSectionModel) View() string {
+	if(m.IsUnset) {
+		return ""
+	}
+
+	if(m.Mp3InfoTable.Focused()) {
+		return focusedStyleDetails.Render(m.Mp3InfoTable.View())
+	}
+
+	return baseStyleDetails.Render(m.Mp3InfoTable.View())
+}
 

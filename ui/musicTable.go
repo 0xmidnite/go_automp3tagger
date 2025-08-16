@@ -17,6 +17,7 @@ type MusicRow struct {
 	FileName 		string
 	HasCompleteID3 	string
 	Status 			FileStatus
+	File 			ops.FileInfo
 	DiscogsResults 	[]discogs.DiscogsSearchResult
 }
 
@@ -35,6 +36,10 @@ type MusicTableModel struct {
 var baseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240"))
+
+var focusedStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.ThickBorder()).
+	BorderForeground(lipgloss.Color("#FFE2AA"))
 
 func (m MusicTableModel) Init() tea.Cmd {
 	return nil
@@ -156,6 +161,10 @@ func (m MusicTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m MusicTableModel) UpdateRowResponse(index int, response []discogs.DiscogsSearchResult) {
+	m.Files[index].DiscogsResults = response
+}
+
 func (m MusicTableModel) Resize(windowWidth int, windowHeight int) MusicTableModel {
 	var tableWidth = float64((windowWidth / 2) - 4)
 	var tableHeight = float64((windowHeight) - 4)
@@ -187,7 +196,7 @@ func (m MusicTableModel) Resize(windowWidth int, windowHeight int) MusicTableMod
 	}
 
 	if(indexWidth + extensionWidth + id3Width + statusWidth > tableWidth) {
-		nameWidth = tableWidth - (indexWidth - extensionWidth - id3Width - statusWidth)
+		nameWidth = tableWidth - (indexWidth + extensionWidth + id3Width + statusWidth)
 	}
 
 	m.Table.SetColumns([]table.Column{
@@ -202,6 +211,10 @@ func (m MusicTableModel) Resize(windowWidth int, windowHeight int) MusicTableMod
 }
 
 func (m MusicTableModel) View() string {
+	if(m.Table.Focused()) {
+		return focusedStyle.Render(m.Table.View())
+	}
+
 	return baseStyle.Render(m.Table.View())
 }
 
