@@ -24,7 +24,7 @@ const (
 func FileStatusToString(status FileStatus) string {
 	switch status {
 		case STATUS_FETCH_OK:
-			return "⎷"
+			return "🆗"
 		case STATUS_FETCH_ACCEPTED:
 			return "✅"
 		case STATUS_FETCH_REJECTED:

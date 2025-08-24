@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 
 	discogs "automp3tagger/discogs"
 
@@ -23,8 +24,9 @@ type DetailsSectionModel struct {
 
 	File 				*ops.FileInfo
 	DiscogsResponses 	[]discogs.DiscogsSearchResult
-	ResponseIndex 		int
 	Fetching 			bool
+	IsInResDetails 		bool
+	LastCursorIndex 	int
 	// CursorIndex 		int
 }
 
@@ -55,9 +57,7 @@ func (m DetailsSectionModel) GetDiscogsResponseRows() []table.Row {
 		return []table.Row{}
 	}
 
-	var rows = []table.Row{
-		{strconv.Itoa(len(m.DiscogsResponses)) + " results found"},
-	}
+	var rows = []table.Row{}
 
 	for _, response := range m.DiscogsResponses {
 		rows = append(rows, table.Row{
@@ -81,6 +81,9 @@ func (m DetailsSectionModel) UpdateDiscogsResponses(responses []discogs.DiscogsS
 		})
 	}else{
 		m.DiscogsResponses = responses
+		m.DiscogsTable.SetColumns([]table.Column{
+			{Title: "Responses | " + strconv.Itoa(len(m.DiscogsResponses)) + " results found", Width: m.ColumnWidth},
+		})
 		rows = slices.Concat(rows, m.GetDiscogsResponseRows())
 	}
 
@@ -105,7 +108,7 @@ func (m DetailsSectionModel) UpdateFetching(fetching bool) DetailsSectionModel {
 	return m
 }
 
-func (m DetailsSectionModel) SetFile(file *ops.FileInfo, discogsResponses *[]discogs.DiscogsSearchResult) DetailsSectionModel {
+func (m DetailsSectionModel) SetFile(file *ops.FileInfo, discogsResponses *[]discogs.DiscogsSearchResult) DetailsSectionModel {	
 	if(file == nil) {
 		m.File = nil
 		m.IsUnset = true
@@ -155,10 +158,13 @@ func (m DetailsSectionModel) SetFile(file *ops.FileInfo, discogsResponses *[]dis
 
 
 	if(len(m.DiscogsResponses) == 0) {
-		discogsRows = slices.Concat(discogsRows, []table.Row{
-			{"No results found"},
+		m.DiscogsTable.SetColumns([]table.Column{
+			{Title: "Responses | No results found", Width: m.ColumnWidth},
 		})
 	}else{
+		m.DiscogsTable.SetColumns([]table.Column{
+			{Title: "Responses | " + strconv.Itoa(len(m.DiscogsResponses)) + " results found", Width: m.ColumnWidth},
+		})
 		discogsRows = slices.Concat(discogsRows, m.GetDiscogsResponseRows())
 	}
 
@@ -176,7 +182,7 @@ func (m DetailsSectionModel) Resize(windowWidth int, windowHeight int) DetailsSe
 	m.Mp3InfoTable.SetHeight(int(tableHeight))
 
 	m.DiscogsTable.SetWidth(int(tableWidth))
-	m.DiscogsTable.SetHeight(int(tableHeight) - 2)
+	m.DiscogsTable.SetHeight(int(math.Ceil(tableHeight)) - 2)
 
 	var columns = m.Mp3InfoTable.Columns()
 	for i := 0; i < len(columns); i++ {
@@ -249,7 +255,6 @@ func InitInfoTable() DetailsSectionModel {
 		IsUnset: true,
 		File: nil,
 		DiscogsResponses: []discogs.DiscogsSearchResult{},
-		ResponseIndex: -1,
 		Fetching: false,
 		ColumnWidth: 70,
 	}
@@ -257,6 +262,12 @@ func InitInfoTable() DetailsSectionModel {
 
 func (m DetailsSectionModel) Init() tea.Cmd {
 	return nil
+}
+
+func (m DetailsSectionModel) ResetState() DetailsSectionModel {
+	m.IsInResDetails = false
+	m.LastCursorIndex = -1
+	return m
 }
 
 func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -308,6 +319,55 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 	m.CursorIndex = len(m.Files) - 1
 			// }
 
+			return m, cmd
+
+		case " ":
+			if(len(m.DiscogsResponses) == 0 || m.IsInResDetails) {
+				return m, cmd
+			}
+
+			m.IsInResDetails = true
+			
+			var cursorPosition = m.DiscogsTable.Cursor()
+			var response = m.DiscogsResponses[cursorPosition]
+
+			m.LastCursorIndex = cursorPosition
+
+			var newRows = []table.Row{
+				{"Title: " + response.Title},
+				{"Catno: " + response.Catno},
+				{"Format: " + strings.Join(response.Format, ", ")},
+				{"Label: " + strings.Join(response.Label, ", ")},
+				{"Year: " + response.Year},
+				{"Genre: " + strings.Join(response.Genre, ", ")},
+				{"Style: " + strings.Join(response.Style, ", ")},
+				{"Country: " + response.Country},
+				{"Thumb: " + response.Thumb},
+				{"ResourceURL: " + response.ResourceURL},
+				{"URI: " + response.URI},
+			}
+
+			m.DiscogsTable.SetRows(newRows)
+			m.DiscogsTable.SetColumns([]table.Column{
+				{Title: "Response Details for " + response.Title, Width: m.ColumnWidth},
+			})
+			m.DiscogsTable.SetCursor(0)
+
+			return m, cmd
+
+
+			
+		case "backspace":
+			if(m.IsInResDetails) {
+				m.IsInResDetails = false
+				m.DiscogsTable.SetColumns([]table.Column{
+					{Title: "Responses | " + strconv.Itoa(len(m.DiscogsResponses)) + " results found", Width: m.ColumnWidth},
+				})
+				m.DiscogsTable.SetRows(m.GetDiscogsResponseRows())
+				m.DiscogsTable.SetCursor(m.LastCursorIndex)
+
+				m.LastCursorIndex = -1
+			}
 			return m, cmd
 		}
 	}

@@ -59,7 +59,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			rows[index][4] = statusStyle.Render(ui.FileStatusToString(ui.STATUS_FETCH_OK))
-			m.actionSection.Log = "ROW updated:" + rows[index][0] + " " + rows[index][1] + " " + rows[index][2] + " " + rows[index][3] + " " + rows[index][4]
+			m.actionSection.Log = "ROW updated:" + rows[index][0] + " " + rows[index][1]
 
 			m.musicTable.Table.SetRows(rows)
 
@@ -116,10 +116,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, cmd
 
 
-				case "up", "down", "shift+up", "shift+down", " ":
+				case "up", "down", "shift+up", "shift+down", " ", "backspace":
 					if(m.musicTable.Table.Focused()) {
 						var updatedModel tea.Model
 
+						m.detailsSection = m.detailsSection.ResetState()
 						updatedModel, cmd = m.musicTable.Update(msg)
 						m.musicTable = updatedModel.(ui.MusicTableModel)
 					}
