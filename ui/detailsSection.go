@@ -2,6 +2,7 @@ package ui
 
 import (
 	ops "automp3tagger/file_ops"
+	"math"
 	"slices"
 	"strconv"
 
@@ -72,7 +73,7 @@ func (m DetailsSectionModel) UpdateDiscogsResponses(responses []discogs.DiscogsS
 		return m
 	}
 	
-	var rows = m.GetFileRows()
+	var rows = []table.Row{}
 
 	if(len(responses) == 0) {
 		rows = slices.Concat(rows, []table.Row{
@@ -83,7 +84,7 @@ func (m DetailsSectionModel) UpdateDiscogsResponses(responses []discogs.DiscogsS
 		rows = slices.Concat(rows, m.GetDiscogsResponseRows())
 	}
 
-	m.Mp3InfoTable.SetRows(rows)
+	m.DiscogsTable.SetRows(rows)
 
 	return m
 }
@@ -148,38 +149,48 @@ func (m DetailsSectionModel) SetFile(file *ops.FileInfo, discogsResponses *[]dis
 	})
 
 	var rows = m.GetFileRows()
-
+	var discogsRows = []table.Row{}
+	
 	m.DiscogsResponses = *discogsResponses
 
+
 	if(len(m.DiscogsResponses) == 0) {
-		rows = slices.Concat(rows, []table.Row{
+		discogsRows = slices.Concat(discogsRows, []table.Row{
 			{"No results found"},
 		})
 	}else{
-		rows = slices.Concat(rows, m.GetDiscogsResponseRows())
+		discogsRows = slices.Concat(discogsRows, m.GetDiscogsResponseRows())
 	}
 
 	m.Mp3InfoTable.SetRows(rows)
+	m.DiscogsTable.SetRows(discogsRows)
 
 	return m
 }
 
 func (m DetailsSectionModel) Resize(windowWidth int, windowHeight int) DetailsSectionModel {
-	var tableWidth float32 = float32((windowWidth / 2.0) - 10.0)
-	var tableHeight = (windowHeight) - 4
+	var tableWidth float64 = math.Round(float64((windowWidth / 2.0) - 10.0))
+	var tableHeight float64 = math.Round(float64(((windowHeight) - 4) / 2))
 
 	m.Mp3InfoTable.SetWidth(int(tableWidth))
-	m.Mp3InfoTable.SetHeight(tableHeight)
+	m.Mp3InfoTable.SetHeight(int(tableHeight))
 
-	
+	m.DiscogsTable.SetWidth(int(tableWidth))
+	m.DiscogsTable.SetHeight(int(tableHeight) - 2)
+
 	var columns = m.Mp3InfoTable.Columns()
-
 	for i := 0; i < len(columns); i++ {
 		columns[i].Width = int(tableWidth)
+	}
+	
+	var discogsColumns = m.DiscogsTable.Columns()
+	for i := 0; i < len(discogsColumns); i++ {
+		discogsColumns[i].Width = int(tableWidth)
 	}
 
 	m.ColumnWidth = int(tableWidth)
 	m.Mp3InfoTable.SetColumns(columns)
+	m.DiscogsTable.SetColumns(discogsColumns)
 
 	return m
 }
@@ -204,7 +215,7 @@ func InitInfoStyles() table.Styles {
 
 func InitInfoTable() DetailsSectionModel {
 	var styles = InitInfoStyles()
-	table := table.New(
+	tableMp3Info := table.New(
 		table.WithColumns([]table.Column{
 			{Title: "No file selected", Width: 70},
 		}),
@@ -216,10 +227,24 @@ func InitInfoTable() DetailsSectionModel {
 
 	)
 
-	table.SetStyles(styles)
+	tableMp3Info.SetStyles(styles)
+
+	tableDiscogs := table.New(
+		table.WithColumns([]table.Column{
+			{Title: "Responses", Width: 70},
+		}),
+		table.WithRows([]table.Row{
+			{"No results."},
+		}),
+		table.WithFocused(false),
+		table.WithHeight(15),
+	)
+
+	tableDiscogs.SetStyles(styles)
 
 	return DetailsSectionModel{
-		Mp3InfoTable: table,
+		Mp3InfoTable: tableMp3Info,
+		DiscogsTable: tableDiscogs,
 		IsFocused: false,
 		IsUnset: true,
 		File: nil,
@@ -246,7 +271,7 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "up":
-			m.Mp3InfoTable.MoveUp(1)
+			m.DiscogsTable.MoveUp(1)
 
 			// if m.CursorIndex > 0 {
 			// 	m.CursorIndex--
@@ -255,7 +280,7 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case "down":
-			m.Mp3InfoTable.MoveDown(1)
+			m.DiscogsTable.MoveDown(1)
 
 			// if m.CursorIndex < len(m.Files) - 1 {
 			// 	m.CursorIndex++
@@ -264,7 +289,7 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case "shift+up":
-			m.Mp3InfoTable.MoveUp(10)
+			m.DiscogsTable.MoveUp(10)
 
 			// if m.CursorIndex - 10 > 0 {
 			// 	m.CursorIndex -= 10
@@ -275,7 +300,7 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case "shift+down":
-			m.Mp3InfoTable.MoveDown(10)
+			m.DiscogsTable.MoveDown(10)
 
 			// if m.CursorIndex + 10 < len(m.Files) {
 			// 	m.CursorIndex += 10
@@ -294,10 +319,10 @@ func (m DetailsSectionModel) View() string {
 		return ""
 	}
 
-	if(m.Mp3InfoTable.Focused()) {
-		return focusedStyleDetails.Render(m.Mp3InfoTable.View())
+	if(m.IsFocused) {
+		return lipgloss.JoinVertical(lipgloss.Left, baseStyleDetails.Render(m.Mp3InfoTable.View()), focusedStyleDetails.Render(m.DiscogsTable.View()))
 	}
 
-	return baseStyleDetails.Render(m.Mp3InfoTable.View())
+	return lipgloss.JoinVertical(lipgloss.Left, baseStyleDetails.Render(m.Mp3InfoTable.View()), baseStyleDetails.Render(m.DiscogsTable.View()))
 }
 

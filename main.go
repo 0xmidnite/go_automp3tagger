@@ -33,6 +33,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
     switch msg := msg.(type) {
 		case discogs.DiscogsRequestMsg:
+			var statusStyle = m.musicTable.GetStatusStyle()
+
 			var rows = m.musicTable.Table.Rows()
 			var index = msg.Index - 1
 
@@ -41,7 +43,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if(msg.Error != nil) {
 				m.actionSection = m.actionSection.SetLog(msg.Error.Error())
 
-				rows[index][4] = ui.FileStatusToString(ui.STATUS_FETCH_ERROR)
+				rows[index][4] = statusStyle.Render(ui.FileStatusToString(ui.STATUS_FETCH_ERROR))
 
 				m.musicTable.Table.SetRows(rows)
 
@@ -56,7 +58,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detailsSection = m.detailsSection.UpdateDiscogsResponses(msg.Response.Results)
 			}
 
-			rows[index][4] = ui.FileStatusToString(ui.STATUS_FETCH_OK)
+			rows[index][4] = statusStyle.Render(ui.FileStatusToString(ui.STATUS_FETCH_OK))
+			m.actionSection.Log = "ROW updated:" + rows[index][0] + " " + rows[index][1] + " " + rows[index][2] + " " + rows[index][3] + " " + rows[index][4]
 
 			m.musicTable.Table.SetRows(rows)
 
@@ -94,11 +97,13 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     		switch msg.String() {
 				case "tab":
 					if(m.musicTable.Table.Focused() && !m.detailsSection.IsUnset) {
-						m.detailsSection.Mp3InfoTable.Focus()
+						m.detailsSection.DiscogsTable.Focus()
+						m.detailsSection.IsFocused = true
 						m.musicTable.Table.Blur()
 					}else{
 						m.musicTable.Table.Focus()
-						m.detailsSection.Mp3InfoTable.Blur()
+						m.detailsSection.IsFocused = false
+						m.detailsSection.DiscogsTable.Blur()
 					}
 					return m, nil
 
@@ -119,7 +124,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.musicTable = updatedModel.(ui.MusicTableModel)
 					}
 
-					if(m.detailsSection.Mp3InfoTable.Focused()) {
+					if(m.detailsSection.IsFocused) {
 						var updatedModel tea.Model
 
 						updatedModel, cmd = m.detailsSection.Update(msg)

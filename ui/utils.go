@@ -24,19 +24,19 @@ const (
 func FileStatusToString(status FileStatus) string {
 	switch status {
 		case STATUS_FETCH_OK:
-			return "☑️\t"
+			return "⎷"
 		case STATUS_FETCH_ACCEPTED:
-			return "✅\t"
+			return "✅"
 		case STATUS_FETCH_REJECTED:
-			return "❌\t"
+			return "❌"
 		case STATUS_PENDING:
-			return "💬\t"
+			return "💬"
 		case STATUS_FETCH_ERROR:
-			return "‼️\t"
+			return "‼️"
 		case STATUS_FETCHING:
-			return "🔎\t"
+			return "🔎"
 		default:
-			return "⛔️\t"
+			return "⛔️"
 	}
 }
 
@@ -75,6 +75,7 @@ func CheckID3(file ops.FileInfo) (string, bool) {
 			id3TagFlag += "-"
 			complete = false
 		}
+
 		if(file.Id3Info.Year() != ""){
 			id3TagFlag += "Y"
 		}else{
