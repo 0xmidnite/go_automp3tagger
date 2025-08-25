@@ -100,10 +100,16 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.detailsSection.DiscogsTable.Focus()
 						m.detailsSection.IsFocused = true
 						m.musicTable.Table.Blur()
+						
+						m.actionSection.IsFocusedOnMusicTable = false
+						m.actionSection.IsFocusedOnDetailsTable = true
 					}else{
 						m.musicTable.Table.Focus()
 						m.detailsSection.IsFocused = false
 						m.detailsSection.DiscogsTable.Blur()
+
+						m.actionSection.IsFocusedOnMusicTable = true
+						m.actionSection.IsFocusedOnDetailsTable = false
 					}
 					return m, nil
 

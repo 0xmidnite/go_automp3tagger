@@ -283,41 +283,21 @@ func (m DetailsSectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "up":
 			m.DiscogsTable.MoveUp(1)
-
-			// if m.CursorIndex > 0 {
-			// 	m.CursorIndex--
-			// }
-
+			
 			return m, cmd
 
 		case "down":
 			m.DiscogsTable.MoveDown(1)
 
-			// if m.CursorIndex < len(m.Files) - 1 {
-			// 	m.CursorIndex++
-			// }
-
 			return m, cmd
 
 		case "shift+up":
 			m.DiscogsTable.MoveUp(10)
-
-			// if m.CursorIndex - 10 > 0 {
-			// 	m.CursorIndex -= 10
-			// } else {
-			// 	m.CursorIndex = 0
-			// }
 			
 			return m, cmd
 
 		case "shift+down":
 			m.DiscogsTable.MoveDown(10)
-
-			// if m.CursorIndex + 10 < len(m.Files) {
-			// 	m.CursorIndex += 10
-			// } else {
-			// 	m.CursorIndex = len(m.Files) - 1
-			// }
 
 			return m, cmd
 
